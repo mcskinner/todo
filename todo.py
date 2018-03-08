@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
+import collections
+import click
 import hashlib
 import json
 import os
-import sys
 
 
-DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.abspath(__file__))
+DB = os.path.join(ROOT, 'todos.json')
+RENDER_ROOT = os.path.join(ROOT, 'todo')
 
 TODO = 'todo'
 DONE = 'done'
@@ -19,8 +22,7 @@ def _hash(todo):
 
 
 class Mgr(object):
-    def __init__(self, db, data):
-        self._db = db
+    def __init__(self, data):
         self._data = data
 
     def list(self):
@@ -44,25 +46,39 @@ class Mgr(object):
         self._journal()
 
     def _journal(self):
-        with open(self._db, 'w') as dbf:
+        with open(DB, 'w') as dbf:
             dbf.write(json.dumps(self._data))
 
 
-def manager(db=None):
-    if db is None:
-        db = os.path.join(DIR, 'todos.json')
-
+def manager():
     data = {}
-    if os.path.isfile(db):
-        with open(db) as dbf:
+    if os.path.isfile(DB):
+        with open(DB) as dbf:
             data = json.loads(dbf.read())
-    return Mgr(db, data)
+    return Mgr(data)
 
 
-def main(argv):
-    mgr = manager()
-    print(mgr.list())
+@click.group()
+def cli():
+    pass
+
+
+@cli.command('list')
+def list_em():
+    print(manager().list())
+
+
+@cli.command()
+def render():
+    if not os.path.isdir(RENDER_ROOT):
+        os.makedirs(RENDER_ROOT)
+    with open(os.path.join(RENDER_ROOT, 'README.md'), 'w') as readme:
+        readme.write('TODO\n----\n')
+        for todo in manager().list().values():
+            readme.write('* {}\n'.format(todo['short']))
+            if 'notes' in todo:
+                readme.write('  * {}\n'.format(todo['notes']))
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    cli()
